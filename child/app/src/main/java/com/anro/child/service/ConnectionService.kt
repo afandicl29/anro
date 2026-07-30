@@ -7,16 +7,23 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import com.anro.child.repository.SignalingRepository
 
 class ConnectionService : Service() {
 
     companion object {
         private const val CHANNEL_ID = "anro_service"
         private const val NOTIFICATION_ID = 1
+
+        // Ganti sesuai IP server ANRO
+        private const val SERVER_WS = "ws://192.168.0.105:3000/ws"
     }
+
+    private lateinit var signalingRepository: SignalingRepository
 
     override fun onCreate() {
         super.onCreate()
+
         createNotificationChannel()
 
         val notification = Notification.Builder(this, CHANNEL_ID)
@@ -26,17 +33,31 @@ class ConnectionService : Service() {
             .build()
 
         startForeground(NOTIFICATION_ID, notification)
+
+        signalingRepository = SignalingRepository(SERVER_WS)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Nanti di sini kita jalankan WebSocket
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int
+    ): Int {
+
+        signalingRepository.connect()
+
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        signalingRepository.disconnect()
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "ANRO Service",

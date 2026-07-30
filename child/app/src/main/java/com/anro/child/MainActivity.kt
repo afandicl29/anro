@@ -13,16 +13,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val serviceIntent = Intent(this, ConnectionService::class.java)
+        val intent = Intent(this, ConnectionService::class.java)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
+            startForegroundService(intent)
         } else {
-            startService(serviceIntent)
+            startService(intent)
         }
 
         setContent {
-            Text("ANRO Child Running")
+            Text("ANRO Child")
         }
     }
 }
