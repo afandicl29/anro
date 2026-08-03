@@ -15,14 +15,23 @@ class SignalingRepository(
     fun connect() {
 
         socket.connect(object : WebSocketListener() {
-
             override fun onOpen(
-                webSocket: WebSocket,
-                response: Response
-            ) {
-                Log.i("ANRO", "WebSocket Connected")
-            }
+   	       webSocket: WebSocket,
+    	       response: Response
+	)		 {
+    Log.i("ANRO", "WebSocket Connected")
 
+    send(
+        """
+        {
+            "type":"register",
+            "deviceId":"child-001",
+            "role":"child"
+       	         }
+       		 """.trimIndent()
+    		)
+	    }
+ 
             override fun onMessage(
                 webSocket: WebSocket,
                 text: String
