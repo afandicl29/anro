@@ -34,7 +34,10 @@ class ConnectionService : Service() {
 
         startForeground(NOTIFICATION_ID, notification)
 
-        signalingRepository = SignalingRepository(SERVER_WS)
+        signalingRepository = SignalingRepository(
+            this,
+            SERVER_WS
+        )
     }
 
     override fun onStartCommand(
