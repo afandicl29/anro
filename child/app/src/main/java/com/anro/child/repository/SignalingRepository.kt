@@ -11,8 +11,10 @@ import okhttp3.WebSocketListener
 
 class SignalingRepository(
     private val context: Context,
-    serverUrl: String
-) {
+    serverUrl: String,
+    private val onScreenRequest: () -> Unit
+)
+ {
 
     private val socket = WebSocketClient(serverUrl)
 
@@ -42,13 +44,26 @@ class SignalingRepository(
                     """.trimIndent()
                 )
             }
+override fun onMessage(
+    webSocket: WebSocket,
+    text: String
+) {
 
-            override fun onMessage(
-                webSocket: WebSocket,
-                text: String
-            ) {
-                Log.i("ANRO", "RX: $text")
-            }
+    Log.i("ANRO", "RX: $text")
+
+
+    if (text.contains("screen_request")) {
+
+        Log.i(
+            "ANRO",
+            "Screen request received"
+        )
+
+        onScreenRequest()
+
+    }
+
+}
 
             override fun onClosing(
                 webSocket: WebSocket,

@@ -12,33 +12,56 @@ import com.anro.child.repository.SignalingRepository
 class ConnectionService : Service() {
 
     companion object {
+
         private const val CHANNEL_ID = "anro_service"
         private const val NOTIFICATION_ID = 1
 
-        // Ganti sesuai IP server ANRO
-        private const val SERVER_WS = "ws://192.168.0.116:3000/ws"
+        private const val SERVER_WS =
+            "ws://192.168.0.116:3000/ws"
     }
+
 
     private lateinit var signalingRepository: SignalingRepository
 
+
     override fun onCreate() {
+
         super.onCreate()
+
 
         createNotificationChannel()
 
-        val notification = Notification.Builder(this, CHANNEL_ID)
+
+        val notification = Notification.Builder(
+            this,
+            CHANNEL_ID
+        )
             .setContentTitle("ANRO")
             .setContentText("Service is running")
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setSmallIcon(
+                android.R.drawable.stat_notify_sync
+            )
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
+
+        startForeground(
+            NOTIFICATION_ID,
+            notification
+        )
+
 
         signalingRepository = SignalingRepository(
             this,
             SERVER_WS
-        )
+        ) {
+
+            startScreenCapture()
+
+        }
+
     }
+
+
 
     override fun onStartCommand(
         intent: Intent?,
@@ -46,20 +69,55 @@ class ConnectionService : Service() {
         startId: Int
     ): Int {
 
+
         signalingRepository.connect()
 
+
         return START_STICKY
+
     }
+
+
+
+    private fun startScreenCapture() {
+
+
+        val intent = Intent(
+            this,
+            ScreenCaptureService::class.java
+        )
+
+
+        startService(intent)
+
+    }
+
+
 
     override fun onDestroy() {
+
+
         signalingRepository.disconnect()
+
+
         super.onDestroy()
+
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+
+
+    override fun onBind(
+        intent: Intent?
+    ): IBinder? = null
+
+
+
 
     private fun createNotificationChannel() {
+
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
 
             val channel = NotificationChannel(
                 CHANNEL_ID,
@@ -67,8 +125,17 @@ class ConnectionService : Service() {
                 NotificationManager.IMPORTANCE_LOW
             )
 
-            val manager = getSystemService(NotificationManager::class.java)
+
+            val manager =
+                getSystemService(
+                    NotificationManager::class.java
+                )
+
+
             manager.createNotificationChannel(channel)
+
         }
+
     }
+
 }

@@ -104,23 +104,101 @@ async function loadDevices(){
 
 }
 
-
-
 function connectDevice(id){
 
 
-    alert(
-        "Request screen ke device: " + id
+    if(!ws || ws.readyState !== WebSocket.OPEN){
+
+        alert("WebSocket belum terkoneksi")
+
+        return
+
+    }
+
+
+
+    ws.send(JSON.stringify({
+
+        type:"screen_request",
+
+        target:id
+
+    }))
+
+
+
+    console.log(
+        "Screen request:",
+        id
     )
 
 
 }
 
 
-
 loadDevices()
 
+let ws
 
+
+function connectWS(){
+
+
+    ws = new WebSocket(
+        "ws://" + location.host + "/ws"
+    )
+
+
+    ws.onopen = () => {
+
+
+        console.log("WebSocket connected")
+
+
+        ws.send(JSON.stringify({
+
+            type:"register",
+
+            deviceId:"parent-web-001",
+
+            role:"parent"
+
+        }))
+
+
+    }
+
+
+
+    ws.onmessage = event => {
+
+
+        console.log(
+            "WS:",
+            event.data
+        )
+
+
+    }
+
+
+
+    ws.onclose = () => {
+
+
+        console.log(
+            "WebSocket closed"
+        )
+
+
+    }
+
+
+}
+
+
+
+connectWS()
 </script>
 
 

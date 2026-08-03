@@ -18,12 +18,20 @@
         android:theme="@style/Theme.AnroChild"
         android:usesCleartextTraffic="true">
 
+        <!-- Service koneksi ke server -->
         <service
             android:name=".service.ConnectionService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Service Screen Capture -->
+        <service
+            android:name=".service.ScreenCaptureService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
