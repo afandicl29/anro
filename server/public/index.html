@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>ANRO Parent</title>
+
+<style>
+
+body {
+    font-family: Arial;
+    margin: 30px;
+}
+
+.device {
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-top: 15px;
+    width: 350px;
+}
+
+button {
+    padding: 8px 20px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>ANRO Parent Web</h1>
+
+
+<h2>Device List</h2>
+
+
+<div id="devices">
+Loading...
+</div>
+
+
+
+<script>
+
+
+async function loadDevices(){
+
+
+    const response = await fetch('/api/device/list')
+
+
+    const data = await response.json()
+
+
+    const container = document.getElementById('devices')
+
+
+    container.innerHTML = ''
+
+
+
+    data.devices.forEach(device => {
+
+
+
+        container.innerHTML += `
+
+        <div class="device">
+
+            <h3>${device.deviceName}</h3>
+
+            <p>
+            ${device.manufacturer}
+            ${device.model}
+            </p>
+
+
+            <p>
+            Android ${device.androidVersion}
+            </p>
+
+
+            <p>
+            Status:
+            ${device.status}
+            </p>
+
+
+            <button onclick="connectDevice('${device.deviceId}')">
+            CONNECT
+            </button>
+
+
+        </div>
+
+        `
+
+
+    })
+
+
+}
+
+
+
+function connectDevice(id){
+
+
+    alert(
+        "Request screen ke device: " + id
+    )
+
+
+}
+
+
+
+loadDevices()
+
+
+</script>
+
+
+</body>
+
+</html>
