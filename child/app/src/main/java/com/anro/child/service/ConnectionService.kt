@@ -16,7 +16,7 @@ class ConnectionService : Service() {
         private const val NOTIFICATION_ID = 1
 
         // Ganti sesuai IP server ANRO
-        private const val SERVER_WS = "ws://192.168.0.105:3000/ws"
+        private const val SERVER_WS = "ws://192.168.0.116:3000/ws"
     }
 
     private lateinit var signalingRepository: SignalingRepository
