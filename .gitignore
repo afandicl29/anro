@@ -1,0 +1,14 @@
+# Android
+.gradle/
+**/build/
+*.apk
+
+# Java dump
+*.hprof
+
+# Local
+local.properties
+
+# IDE
+.idea/
+*.iml
