@@ -1,102 +1,207 @@
 package com.anro.child.repository
 
+
 import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.anro.child.network.WebSocketClient
 import com.anro.child.util.DeviceIdManager
+import com.anro.child.webrtc.WebRtcManager
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 
+
+
 class SignalingRepository(
     private val context: Context,
-    serverUrl: String,
-    private val onScreenRequest: () -> Unit
-)
- {
+    serverUrl:String,
+    private val onScreenRequest:()->Unit
+) {
 
-    private val socket = WebSocketClient(serverUrl)
 
-    fun connect() {
+    private val socket =
+        WebSocketClient(serverUrl)
 
-        socket.connect(object : WebSocketListener() {
 
-            override fun onOpen(
-                webSocket: WebSocket,
-                response: Response
-            ) {
 
-                Log.i("ANRO", "WebSocket Connected")
+    fun connect(){
 
-                val deviceId = DeviceIdManager.getDeviceId(context)
 
-                send(
-                    """
-                    {
+        socket.connect(
+
+            object:WebSocketListener(){
+
+
+                override fun onOpen(
+                    webSocket:WebSocket,
+                    response:Response
+                ){
+
+
+                    Log.i(
+                        "ANRO",
+                        "WebSocket Connected"
+                    )
+
+
+                    val id =
+                    DeviceIdManager
+                        .getDeviceId(context)
+
+
+
+                    send(
+                        """
+                        {
                         "type":"register",
-                        "deviceId":"$deviceId",
+                        "deviceId":"$id",
                         "role":"child",
                         "manufacturer":"${Build.MANUFACTURER}",
                         "model":"${Build.MODEL}",
                         "androidVersion":"${Build.VERSION.RELEASE}"
+                        }
+                        """.trimIndent()
+                    )
+
+
+                }
+
+
+
+
+
+                override fun onMessage(
+                    webSocket:WebSocket,
+                    text:String
+                ){
+
+
+                    Log.i(
+                        "ANRO",
+                        "RX: $text"
+                    )
+
+
+
+                    when{
+
+
+                        text.contains(
+                            "screen_request"
+                        )->{
+
+
+                            Log.i(
+                                "ANRO",
+                                "Screen request"
+                            )
+
+
+                            WebRtcManager
+                                .setSignaling(
+                                    this@SignalingRepository
+                                )
+
+
+
+                            onScreenRequest()
+
+
+                        }
+
+
+
+
+                        text.contains(
+                            "webrtc_answer"
+                        )->{
+
+
+                            Log.i(
+                                "ANRO",
+                                "Answer received"
+                            )
+
+
+                            WebRtcManager
+                                .setRemoteAnswer(
+                                    text
+                                )
+
+
+                        }
+
+
+
+
+                        text.contains(
+                            "ice_candidate"
+                        )->{
+
+
+                            Log.i(
+                                "ANRO",
+                                "ICE received"
+                            )
+
+
+                            WebRtcManager
+                                .addIceCandidate(
+                                    text
+                                )
+
+
+                        }
+
+
                     }
-                    """.trimIndent()
-                )
+
+
+                }
+
+
+
+
+                override fun onFailure(
+                    webSocket:WebSocket,
+                    t:Throwable,
+                    response:Response?
+                ){
+
+                    Log.e(
+                        "ANRO",
+                        "WS Error",
+                        t
+                    )
+
+                }
+
+
             }
-override fun onMessage(
-    webSocket: WebSocket,
-    text: String
-) {
 
-    Log.i("ANRO", "RX: $text")
-
-
-    if (text.contains("screen_request")) {
-
-        Log.i(
-            "ANRO",
-            "Screen request received"
         )
 
-        onScreenRequest()
 
     }
 
-}
 
-            override fun onClosing(
-                webSocket: WebSocket,
-                code: Int,
-                reason: String
-            ) {
-                Log.i("ANRO", "Closing")
-            }
 
-            override fun onClosed(
-                webSocket: WebSocket,
-                code: Int,
-                reason: String
-            ) {
-                Log.i("ANRO", "Closed")
-            }
+    fun send(
+        message:String
+    ){
 
-            override fun onFailure(
-                webSocket: WebSocket,
-                t: Throwable,
-                response: Response?
-            ) {
-                Log.e("ANRO", "WebSocket Error", t)
-            }
-
-        })
-    }
-
-    fun send(message: String) {
         socket.send(message)
+
     }
 
-    fun disconnect() {
+
+
+    fun disconnect(){
+
         socket.disconnect()
+
     }
+
+
 }

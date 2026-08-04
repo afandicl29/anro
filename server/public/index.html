@@ -3,27 +3,43 @@
 
 <head>
 
-<title>ANRO Parent</title>
+<title>ANRO Guardian</title>
 
 <style>
 
-body {
-    font-family: Arial;
-    margin: 30px;
+body{
+    background:#111;
+    color:white;
+    font-family:Arial;
 }
 
-.device {
-    border: 1px solid #ccc;
-    padding: 15px;
-    margin-top: 15px;
-    width: 350px;
+
+video{
+
+    width:720px;
+    height:1280px;
+
+    max-width:90vw;
+    max-height:80vh;
+
+    background:black;
+
+    border:2px solid #555;
+
 }
 
-button {
-    padding: 8px 20px;
+
+button,select{
+
+    padding:10px;
+    margin:5px;
+
+    font-size:16px;
+
 }
 
 </style>
+
 
 </head>
 
@@ -31,177 +47,660 @@ button {
 <body>
 
 
-<h1>ANRO Parent Web</h1>
+<h2>
+ANRO Guardian
+</h2>
 
 
-<h2>Device List</h2>
+<select id="deviceList">
+
+</select>
 
 
-<div id="devices">
-Loading...
-</div>
+<button onclick="requestScreen()">
+Screen
+</button>
+
+
+<br><br>
+
+
+<video
+id="remoteVideo"
+autoplay
+playsinline
+muted>
+</video>
 
 
 
 <script>
 
 
-async function loadDevices(){
+let ws=null;
+
+let pc=null;
 
 
-    const response = await fetch('/api/device/list')
+let selectedDevice=null;
 
 
-    const data = await response.json()
-
-
-    const container = document.getElementById('devices')
-
-
-    container.innerHTML = ''
+let iceQueue=[];
 
 
 
-    data.devices.forEach(device => {
+const video =
+document.getElementById(
+"remoteVideo"
+);
 
 
 
-        container.innerHTML += `
-
-        <div class="device">
-
-            <h3>${device.deviceName}</h3>
-
-            <p>
-            ${device.manufacturer}
-            ${device.model}
-            </p>
-
-
-            <p>
-            Android ${device.androidVersion}
-            </p>
-
-
-            <p>
-            Status:
-            ${device.status}
-            </p>
-
-
-            <button onclick="connectDevice('${device.deviceId}')">
-            CONNECT
-            </button>
-
-
-        </div>
-
-        `
-
-
-    })
-
-
-}
-
-function connectDevice(id){
-
-
-    if(!ws || ws.readyState !== WebSocket.OPEN){
-
-        alert("WebSocket belum terkoneksi")
-
-        return
-
-    }
-
-
-
-    ws.send(JSON.stringify({
-
-        type:"screen_request",
-
-        target:id
-
-    }))
-
-
-
-    console.log(
-        "Screen request:",
-        id
-    )
-
-
-}
-
-
-loadDevices()
-
-let ws
+/*
+=========================
+ WEBSOCKET
+=========================
+*/
 
 
 function connectWS(){
 
 
-    ws = new WebSocket(
-        "ws://" + location.host + "/ws"
-    )
-
-
-    ws.onopen = () => {
-
-
-        console.log("WebSocket connected")
-
-
-        ws.send(JSON.stringify({
-
-            type:"register",
-
-            deviceId:"parent-web-001",
-
-            role:"parent"
-
-        }))
-
-
-    }
+ws =
+new WebSocket(
+"ws://192.168.0.116:3000/ws"
+);
 
 
 
-    ws.onmessage = event => {
+ws.onopen=function(){
 
 
-        console.log(
-            "WS:",
-            event.data
-        )
-
-
-    }
+console.log(
+"WS CONNECTED"
+);
 
 
 
-    ws.onclose = () => {
+ws.send(JSON.stringify({
+
+type:"register",
+
+deviceId:"parent-web-001",
+
+role:"parent"
+
+}));
 
 
-        console.log(
-            "WebSocket closed"
-        )
+
+loadDevices();
 
 
-    }
+};
+
+
+
+
+
+ws.onmessage =
+async function(event){
+
+
+let msg =
+JSON.parse(
+event.data
+);
+
+
+
+console.log(
+"RX",
+msg
+);
+
+
+
+
+/*
+ RECEIVE OFFER
+*/
+
+
+if(
+msg.type==="webrtc_offer"
+){
+
+
+
+await createPeer();
+
+
+
+await pc.setRemoteDescription({
+
+type:"offer",
+
+sdp:msg.sdp
+
+});
+
+
+
+console.log(
+"REMOTE SDP OK"
+);
+
+
+
+/*
+ add queued ICE
+*/
+
+
+for(
+let c of iceQueue
+){
+
+
+try{
+
+
+await pc.addIceCandidate(
+new RTCIceCandidate(c)
+);
+
+
+
+console.log(
+"QUEUED ICE OK"
+);
+
+
+}catch(e){
+
+console.log(e);
+
+}
 
 
 }
 
 
 
-connectWS()
+iceQueue=[];
+
+
+
+let answer =
+await pc.createAnswer();
+
+
+
+await pc.setLocalDescription(
+answer
+);
+
+
+
+ws.send(JSON.stringify({
+
+type:"webrtc_answer",
+
+target:selectedDevice,
+
+sdp:answer.sdp
+
+
+}));
+
+
+
+console.log(
+"ANSWER SENT"
+);
+
+
+
+}
+
+
+
+
+/*
+ RECEIVE ICE
+*/
+
+
+if(
+msg.type==="ice_candidate"
+){
+
+
+if(!pc)
+return;
+
+
+
+if(
+!pc.remoteDescription
+){
+
+
+console.log(
+"QUEUE ICE"
+);
+
+
+
+iceQueue.push(
+msg.candidate
+);
+
+
+
+return;
+
+}
+
+
+
+try{
+
+
+await pc.addIceCandidate(
+
+new RTCIceCandidate(
+msg.candidate
+)
+
+);
+
+
+
+console.log(
+"ICE OK"
+);
+
+
+
+}catch(e){
+
+
+console.log(
+"ICE ERROR",
+e
+);
+
+
+}
+
+
+
+}
+
+
+
+};
+
+
+
+ws.onclose=function(){
+
+
+console.log(
+"WS CLOSED"
+);
+
+
+setTimeout(
+connectWS,
+3000
+);
+
+
+};
+
+
+
+}
+
+
+
+
+/*
+=========================
+ PEER CONNECTION
+=========================
+*/
+
+
+async function createPeer(){
+
+
+if(pc){
+
+
+try{
+
+pc.close();
+
+}catch(e){}
+
+
+}
+
+
+
+iceQueue=[];
+
+
+
+pc =
+new RTCPeerConnection({
+
+
+iceServers:[
+
+{
+
+urls:
+"stun:stun.l.google.com:19302"
+
+}
+
+]
+
+
+});
+
+
+
+
+
+pc.onicecandidate =
+function(e){
+
+
+
+if(
+e.candidate
+){
+
+
+ws.send(JSON.stringify({
+
+type:"ice_candidate",
+
+target:selectedDevice,
+
+candidate:e.candidate
+
+
+}));
+
+
+console.log(
+"ICE SEND"
+);
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+pc.onconnectionstatechange =
+function(){
+
+
+console.log(
+
+"PC STATE",
+
+pc.connectionState
+
+);
+
+
+};
+
+
+
+
+
+
+pc.ontrack =
+function(e){
+
+
+
+console.log(
+"TRACK RECEIVED",
+e.track.kind
+);
+
+
+
+let stream =
+e.streams[0];
+
+
+
+if(!stream){
+
+
+stream =
+new MediaStream();
+
+
+stream.addTrack(
+e.track
+);
+
+
+}
+
+
+
+
+video.srcObject =
+stream;
+
+
+
+video.onloadedmetadata =
+function(){
+
+
+console.log(
+"VIDEO READY"
+);
+
+
+
+video.play()
+
+.then(()=>{
+
+
+console.log(
+"VIDEO PLAY OK"
+);
+
+
+})
+
+.catch(err=>{
+
+
+console.log(
+"VIDEO PLAY ERROR",
+err
+);
+
+
+});
+
+
+
+};
+
+
+
+};
+
+
+
+}
+
+
+
+
+
+
+/*
+=========================
+ DEVICE LIST
+=========================
+*/
+
+
+async function loadDevices(){
+
+
+let res =
+await fetch(
+"/api/device/list"
+);
+
+
+
+let data =
+await res.json();
+
+
+
+let select =
+document.getElementById(
+"deviceList"
+);
+
+
+
+select.innerHTML="";
+
+
+
+data.devices
+.filter(
+d=>d.role==="child"
+)
+.forEach(
+function(d){
+
+
+
+let option =
+document.createElement(
+"option"
+);
+
+
+
+option.value =
+d.deviceId;
+
+
+
+option.text =
+(
+d.deviceName ||
+"Unknown"
+)
++
+" - "
++
+(
+d.model ||
+""
+);
+
+
+
+select.appendChild(
+option
+);
+
+
+
+});
+
+
+
+}
+
+
+
+
+
+
+/*
+=========================
+ REQUEST SCREEN
+=========================
+*/
+
+
+function requestScreen(){
+
+
+selectedDevice =
+
+document.getElementById(
+"deviceList"
+)
+.value;
+
+
+
+console.log(
+"REQUEST SCREEN",
+selectedDevice
+);
+
+
+
+ws.send(JSON.stringify({
+
+type:"screen_request",
+
+target:selectedDevice
+
+
+}));
+
+
+
+}
+
+
+
+
+connectWS();
+
+
+
 </script>
 
 
 </body>
+
 
 </html>
