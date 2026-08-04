@@ -1,14 +1,18 @@
-# Android
+
+# Android build
 .gradle/
+build/
 **/build/
+
+# APK
 *.apk
 
-# Java dump
+# Java heap dump
 *.hprof
-
-# Local
-local.properties
 
 # IDE
 .idea/
 *.iml
+
+# OS
+.DS_Store
