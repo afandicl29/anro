@@ -7,28 +7,29 @@ import android.util.Log
 import com.anro.child.repository.SignalingRepository
 import org.json.JSONObject
 import org.webrtc.*
+import android.util.DisplayMetrics
 
 
 object WebRtcManager {
 
 
-    private lateinit var peerConnection: PeerConnection
+private var peerConnection: PeerConnection? = null
 
-    private lateinit var eglBase: EglBase
+private lateinit var eglBase: EglBase
 
-    private lateinit var peerConnectionFactory: PeerConnectionFactory
+private lateinit var peerConnectionFactory: PeerConnectionFactory
 
-    private lateinit var videoSource: VideoSource
+private lateinit var videoSource: VideoSource
 
-    private lateinit var videoTrack: VideoTrack
+private lateinit var videoTrack: VideoTrack
 
-    private lateinit var surfaceTextureHelper: SurfaceTextureHelper
+private lateinit var surfaceTextureHelper: SurfaceTextureHelper
 
+private var screenCapturer: ScreenCapturerAndroid? = null
 
-    private var signalingRepository: SignalingRepository? = null
+private var captureStarted = false
 
-
-
+private var signalingRepository: SignalingRepository? = null
     fun initialize(context: Context) {
 
 
@@ -89,8 +90,16 @@ object WebRtcManager {
         resultCode:Int,
         data:Intent
     ){
+      if (captureStarted) {
 
+        Log.i(
+        "ANRO",
+        "Screen capture already running"
+        )
 
+        return
+        }
+       
         surfaceTextureHelper =
             SurfaceTextureHelper.create(
                 "ScreenCaptureThread",
@@ -101,11 +110,11 @@ object WebRtcManager {
 
         videoSource =
             peerConnectionFactory
-                .createVideoSource(false)
+                .createVideoSource(true)
 
 
 
-        val capturer =
+        screenCapturer =
             ScreenCapturerAndroid(
                 data,
                 object : MediaProjection.Callback(){
@@ -124,19 +133,37 @@ object WebRtcManager {
 
 
 
-        capturer.initialize(
+        screenCapturer!!.initialize(
             surfaceTextureHelper,
             context,
             videoSource.capturerObserver
         )
 
+        val metrics = DisplayMetrics()
 
+        @Suppress("DEPRECATION")
+        val display =
+            context.getSystemService(Context.WINDOW_SERVICE)
+                as android.view.WindowManager
 
-        capturer.startCapture(
-            720,
-            1280,
-            30
+        @Suppress("DEPRECATION")
+        display.defaultDisplay.getRealMetrics(metrics)
+
+        val width = metrics.widthPixels
+        val height = metrics.heightPixels
+
+        Log.i(
+            "ANRO",
+            "Display Resolution : ${width}x${height}"
         )
+
+        screenCapturer!!.startCapture(
+            width,
+            height,
+            30
+        )   
+
+        captureStarted = true
 
 
 
@@ -180,15 +207,59 @@ object WebRtcManager {
     }
 
 
+    fun stopCapture() {
 
+    try {
 
+        screenCapturer?.stopCapture()
+
+    } catch (e: Exception) {
+
+        Log.e(
+            "ANRO",
+            "stopCapture failed",
+            e
+        )
+
+    }
+
+    screenCapturer?.dispose()
+    screenCapturer = null
+
+    surfaceTextureHelper.dispose()
+
+    videoSource.dispose()
+
+    captureStarted = false
+
+    Log.i(
+        "ANRO",
+        "Screen capture stopped"
+    )
+
+}
+fun closePeerConnection() {
+
+    peerConnection?.close()
+    peerConnection = null
+
+    Log.i(
+        "ANRO",
+        "PeerConnection closed"
+    )
+
+}
 
 
 
 
     fun createPeerConnection(){
+        Log.i(
+                "ANRO",
+                "========== CREATE PEER =========="
+                )
 
-
+        closePeerConnection()
         val rtcConfig =
             PeerConnection.RTCConfiguration(
                 listOf(
@@ -198,6 +269,7 @@ object WebRtcManager {
                         )
                         .createIceServer()
                 )
+                
             )
 
 
@@ -382,18 +454,21 @@ object WebRtcManager {
 
                     }
                 )!!
+                Log.i(
+                "ANRO",
+                "PeerConnection CREATED"
+                )
 
 
 
-        peerConnection.addTrack(
-            videoTrack
+        peerConnection?.addTrack(
+        videoTrack
         )
 
 
-
         Log.i(
-            "ANRO",
-            "Video track added"
+        "ANRO",
+        "VideoTrack ADDED"
         )
 
     }
@@ -409,8 +484,11 @@ object WebRtcManager {
         target:String
     ){
 
-
-        peerConnection.createOffer(
+        Log.i(
+        "ANRO",
+        "========== CREATE OFFER =========="
+        )
+        peerConnection?.createOffer(
 
             object:SdpObserver{
 
@@ -418,11 +496,16 @@ object WebRtcManager {
                 override fun onCreateSuccess(
                     sdp:SessionDescription
                 ){
+                    Log.i(
+                        "ANRO",
+                        "LocalDescription SET"
+                        )
 
 
-                    peerConnection.setLocalDescription(
+                    peerConnection?.setLocalDescription(
                         this,
                         sdp
+                        
                     )
 
 
@@ -448,7 +531,10 @@ object WebRtcManager {
                         sdp.description
                     )
 
-
+                    Log.i(
+                    "ANRO",
+                    "Sending OFFER"
+                    )
 
                     signalingRepository
                         ?.send(
@@ -459,7 +545,7 @@ object WebRtcManager {
 
                     Log.i(
                         "ANRO",
-                        "Offer sent"
+                        "Offer CREATED"
                     )
 
                 }
@@ -514,13 +600,17 @@ object WebRtcManager {
     fun setRemoteAnswer(
         text:String
     ){
+        Log.i(
+        "ANRO",
+        "========== REMOTE ANSWER =========="
+        )
 
         val json =
             JSONObject(text)
 
 
 
-        peerConnection.setRemoteDescription(
+        peerConnection?.setRemoteDescription(
 
             object:SdpObserver{
 
@@ -580,6 +670,10 @@ object WebRtcManager {
     fun addIceCandidate(
         text:String
     ){
+        Log.i(
+        "ANRO",
+        "========== REMOTE ICE =========="
+        )
 
         val json =
             JSONObject(text)
@@ -593,7 +687,7 @@ object WebRtcManager {
 
 
 
-        peerConnection.addIceCandidate(
+        peerConnection?.addIceCandidate(
 
             IceCandidate(
 

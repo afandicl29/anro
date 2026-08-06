@@ -26,8 +26,14 @@ class ScreenCaptureService : Service() {
 
         private const val NOTIFICATION_ID =
             2
-    }
 
+       
+    }
+    private var projectionGranted = false
+
+    private var projectionResultCode = 0
+
+    private var projectionData: Intent? = null
 
 
     private val projectionReceiver =
@@ -43,39 +49,23 @@ class ScreenCaptureService : Service() {
                 if (intent == null)
                     return
 
-
-                val resultCode =
+                projectionResultCode =
                     intent.getIntExtra(
-                        "resultCode",
-                        0
+                     "resultCode",
+                     0
                     )
 
+                projectionData =
+                   intent.getParcelableExtra<Intent>(
+                      "data"
+                     )
+                 ?: return
 
-                val data =
-                    intent.getParcelableExtra<Intent>(
-                        "data"
-                    )
-                    ?: return
-
-
-
-WebRtcManager.startCapture(
-    this@ScreenCaptureService,
-    resultCode,
-    data
-)
-
-
-WebRtcManager.createPeerConnection()
-
-
-WebRtcManager.createOffer(
-    "parent-web-001"
-)
+               projectionGranted = true
 
                 Log.i(
                     "ANRO",
-                    "ScreenCapturerAndroid started"
+                    "MediaProjection granted and cached"
                 )
 
             }
@@ -157,18 +147,39 @@ WebRtcManager.createOffer(
     ): Int {
 
 
-        val requestIntent =
-            Intent(
-                Actions.ACTION_REQUEST_SCREEN_CAPTURE
+        if (!projectionGranted) {
+
+            val requestIntent =
+                Intent(
+                    Actions.ACTION_REQUEST_SCREEN_CAPTURE
+                )
+
+            LocalBroadcastManager
+                .getInstance(this)
+                .sendBroadcast(
+                    requestIntent
+                )
+
+        } else {
+
+            Log.i(
+                "ANRO",
+                "MediaProjection already granted"
             )
 
-
-        LocalBroadcastManager
-            .getInstance(this)
-            .sendBroadcast(
-                requestIntent
+            WebRtcManager.startCapture(
+                this,
+                projectionResultCode,
+                projectionData!!
             )
 
+            WebRtcManager.createPeerConnection()
+
+            WebRtcManager.createOffer(
+                "parent-web-001"
+            )
+
+        }
 
         return START_NOT_STICKY
 
