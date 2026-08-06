@@ -167,17 +167,33 @@ class ScreenCaptureService : Service() {
                 "MediaProjection already granted"
             )
 
-            WebRtcManager.startCapture(
-                this,
-                projectionResultCode,
-                projectionData!!
-            )
+            if (!WebRtcManager.isCaptureStarted()) {
 
-            WebRtcManager.createPeerConnection()
+                Log.i(
+                    "ANRO",
+                    "Starting Screen Capture"
+                )
 
-            WebRtcManager.createOffer(
-                "parent-web-001"
-            )
+                WebRtcManager.startCapture(
+                    this,
+                    projectionResultCode,
+                    projectionData!!
+                )
+
+            } else {
+
+                Log.i(
+                    "ANRO",
+                    "Screen Capture already running"
+                )
+
+            }
+
+                WebRtcManager.createPeerConnection()
+
+                WebRtcManager.createOffer(
+                    "parent-web-001"
+                )
 
         }
 

@@ -8,6 +8,8 @@ import com.anro.child.repository.SignalingRepository
 import org.json.JSONObject
 import org.webrtc.*
 import android.util.DisplayMetrics
+import org.webrtc.Camera2Enumerator
+import org.webrtc.CameraVideoCapturer
 
 
 object WebRtcManager {
@@ -15,19 +17,33 @@ object WebRtcManager {
 
 private var peerConnection: PeerConnection? = null
 
+private var videoSender: RtpSender? = null
+
 private lateinit var eglBase: EglBase
 
 private lateinit var peerConnectionFactory: PeerConnectionFactory
 
-private lateinit var videoSource: VideoSource
+private lateinit var screenVideoSource: VideoSource
 
-private lateinit var videoTrack: VideoTrack
+private lateinit var screenVideoTrack: VideoTrack
+
+private lateinit var cameraVideoSource: VideoSource
+
+private lateinit var cameraVideoTrack: VideoTrack
+
+private var cameraCapturer: CameraVideoCapturer? = null
 
 private lateinit var surfaceTextureHelper: SurfaceTextureHelper
+
+private lateinit var cameraSurfaceTextureHelper: SurfaceTextureHelper
 
 private var screenCapturer: ScreenCapturerAndroid? = null
 
 private var captureStarted = false
+
+fun isCaptureStarted(): Boolean {
+    return captureStarted
+}
 
 private var signalingRepository: SignalingRepository? = null
     fun initialize(context: Context) {
@@ -108,9 +124,9 @@ private var signalingRepository: SignalingRepository? = null
 
 
 
-        videoSource =
-            peerConnectionFactory
-                .createVideoSource(true)
+       screenVideoSource =
+        peerConnectionFactory
+            .createVideoSource(true)
 
 
 
@@ -136,7 +152,7 @@ private var signalingRepository: SignalingRepository? = null
         screenCapturer!!.initialize(
             surfaceTextureHelper,
             context,
-            videoSource.capturerObserver
+            screenVideoSource.capturerObserver
         )
 
         val metrics = DisplayMetrics()
@@ -167,20 +183,20 @@ private var signalingRepository: SignalingRepository? = null
 
 
 
-        videoTrack =
+        screenVideoTrack =
             peerConnectionFactory
                 .createVideoTrack(
                     "SCREEN_TRACK",
-                    videoSource
+                    screenVideoSource
                 )
 
 
 
-        videoTrack.setEnabled(true)
+        screenVideoTrack.setEnabled(true)
 
 
 
-        videoTrack.addSink(
+        screenVideoTrack.addSink(
             object : VideoSink {
 
                 override fun onFrame(
@@ -206,6 +222,111 @@ private var signalingRepository: SignalingRepository? = null
 
     }
 
+    fun startCamera(context: Context) {
+
+    if (cameraCapturer != null) {
+
+        Log.i(
+            "ANRO",
+            "Camera already running"
+        )
+
+        return
+    }
+
+
+    val enumerator =
+        Camera2Enumerator(context)
+
+
+    var cameraName: String? = null
+
+
+    for (name in enumerator.deviceNames) {
+
+        if (enumerator.isFrontFacing(name)) {
+
+            cameraName = name
+            break
+        }
+    }
+
+
+    if (cameraName == null) {
+
+        for (name in enumerator.deviceNames) {
+
+            if (enumerator.isBackFacing(name)) {
+
+                cameraName = name
+                break
+            }
+        }
+    }
+
+
+    if (cameraName == null) {
+
+        Log.e(
+            "ANRO",
+            "Camera not found"
+        )
+
+        return
+    }
+
+
+    cameraCapturer =
+        enumerator.createCapturer(
+            cameraName,
+            null
+        )
+
+
+    cameraSurfaceTextureHelper =
+        SurfaceTextureHelper.create(
+            "CameraThread",
+            eglBase.eglBaseContext
+        )
+
+
+    cameraVideoSource =
+        peerConnectionFactory
+            .createVideoSource(false)
+
+
+    cameraCapturer!!.initialize(
+        cameraSurfaceTextureHelper,
+        context,
+        cameraVideoSource.capturerObserver
+    )
+
+
+    cameraCapturer!!.startCapture(
+        1280,
+        720,
+        30
+    )
+
+
+    cameraVideoTrack =
+        peerConnectionFactory
+            .createVideoTrack(
+                "CAMERA_TRACK",
+                cameraVideoSource
+            )
+
+
+    cameraVideoTrack.setEnabled(true)
+
+
+    Log.i(
+        "ANRO",
+        "Camera started"
+    )
+
+}
+
 
     fun stopCapture() {
 
@@ -228,7 +349,7 @@ private var signalingRepository: SignalingRepository? = null
 
     surfaceTextureHelper.dispose()
 
-    videoSource.dispose()
+    screenVideoSource.dispose()
 
     captureStarted = false
 
@@ -461,22 +582,117 @@ fun closePeerConnection() {
 
 
 
+      videoSender =
+    peerConnection?.addTrack(
+        screenVideoTrack
+    )
+
+
+    Log.i(
+        "ANRO",
+        "ScreenTrack ADDED"
+    )
+
+
+    }
+
+    fun addCameraTrack() {
+
+        if (!::cameraVideoTrack.isInitialized) {
+
+            Log.e(
+                "ANRO",
+                "Camera track belum siap"
+            )
+
+            return
+        }
+
+
         peerConnection?.addTrack(
-        videoTrack
+            cameraVideoTrack
         )
 
 
         Log.i(
-        "ANRO",
-        "VideoTrack ADDED"
+            "ANRO",
+            "CameraTrack ADDED"
+        )
+
+    }
+
+    fun switchToCamera(
+        context: Context
+    ) {
+
+        startCamera(context)
+
+
+        if (!::cameraVideoTrack.isInitialized) {
+
+            Log.e(
+                "ANRO",
+                "Camera track not ready"
+            )
+
+            return
+        }
+
+
+        videoSender?.setTrack(
+            cameraVideoTrack,
+            true
+        )
+
+
+        Log.i(
+            "ANRO",
+            "Switched to camera"
+        )
+
+    }
+
+    fun switchToScreen() {
+
+        if (!::screenVideoTrack.isInitialized) {
+
+            Log.e(
+                "ANRO",
+                "Screen track belum siap"
+            )
+
+            return
+        }
+
+
+        videoSender?.setTrack(
+            screenVideoTrack,
+            true
+        )
+
+
+        Log.i(
+            "ANRO",
+            "Switched to screen"
         )
 
     }
 
 
+    fun stopMedia() {
+
+        videoSender?.setTrack(
+            null,
+            false
+        )
 
 
+        Log.i(
+            "ANRO",
+            "Media stopped"
+        )
 
+    }
 
 
 

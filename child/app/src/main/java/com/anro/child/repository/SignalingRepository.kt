@@ -10,13 +10,14 @@ import com.anro.child.webrtc.WebRtcManager
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-
+import com.anro.child.model.MediaMode
 
 
 class SignalingRepository(
     private val context: Context,
     serverUrl:String,
-    private val onScreenRequest:()->Unit
+    private val onScreenRequest: () -> Unit,
+    private val onMediaMode: (MediaMode) -> Unit
 ) {
 
 
@@ -84,77 +85,60 @@ class SignalingRepository(
 
 
 
-                    when{
+                   when {
 
+                        text.contains("screen_request") -> {
 
-                        text.contains(
-                            "screen_request"
-                        )->{
+                            Log.i("ANRO", "Screen request")
 
-
-                            Log.i(
-                                "ANRO",
-                                "Screen request"
-                            )
-
-
-                            WebRtcManager
-                                .setSignaling(
-                                    this@SignalingRepository
-                                )
-
-
+                            WebRtcManager.setSignaling(this@SignalingRepository)
 
                             onScreenRequest()
+                        }
 
+                        text.contains("media_mode") -> {
+
+                            when {
+
+                                text.contains("SCREEN") -> {
+                                    onMediaMode(MediaMode.SCREEN)
+                                }
+
+                                text.contains("CAMERA") -> {
+                                    onMediaMode(MediaMode.CAMERA)
+                                }
+
+                                text.contains("MICROPHONE") -> {
+                                    onMediaMode(MediaMode.MICROPHONE)
+                                }
+
+                                text.contains("STOP") -> {
+                                    onMediaMode(MediaMode.STOP)
+                                }
+                            }
 
                         }
 
+                        text.contains("disconnect") -> {
 
+                            Log.i("ANRO", "Disconnect request")
 
-
-                        text.contains(
-                            "webrtc_answer"
-                        )->{
-
-
-                            Log.i(
-                                "ANRO",
-                                "Answer received"
-                            )
-
-
-                            WebRtcManager
-                                .setRemoteAnswer(
-                                    text
-                                )
-
-
+                            WebRtcManager.closePeerConnection()
                         }
 
+                        text.contains("webrtc_answer") -> {
 
+                            Log.i("ANRO", "Answer received")
 
-
-                        text.contains(
-                            "ice_candidate"
-                        )->{
-
-
-                            Log.i(
-                                "ANRO",
-                                "ICE received"
-                            )
-
-
-                            WebRtcManager
-                                .addIceCandidate(
-                                    text
-                                )
-
-
+                            WebRtcManager.setRemoteAnswer(text)
                         }
 
+                        text.contains("ice_candidate") -> {
 
+                            Log.i("ANRO", "ICE received")
+
+                            WebRtcManager.addIceCandidate(text)
+                        }
                     }
 
 

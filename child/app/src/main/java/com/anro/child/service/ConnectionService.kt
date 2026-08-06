@@ -8,6 +8,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import com.anro.child.repository.SignalingRepository
+import com.anro.child.model.MediaMode
+import com.anro.child.webrtc.WebRtcManager
 
 class ConnectionService : Service() {
 
@@ -50,14 +52,46 @@ class ConnectionService : Service() {
         )
 
 
-        signalingRepository = SignalingRepository(
-            this,
-            SERVER_WS
-        ) {
+       signalingRepository = SignalingRepository(
+            context = this,
+            serverUrl = SERVER_WS,
 
-            startScreenCapture()
+            onScreenRequest = {
+                startScreenCapture()
+            },
 
-        }
+            onMediaMode = { mode ->
+
+                when (mode) {
+
+                    MediaMode.SCREEN -> {
+
+                        WebRtcManager.switchToScreen()
+
+                    }
+
+                   MediaMode.CAMERA -> {
+
+                        WebRtcManager.switchToCamera(
+                            this
+                        )
+
+                    }
+
+                    MediaMode.MICROPHONE -> {
+                        // nanti kita isi
+                    }
+
+                    MediaMode.STOP -> {
+
+                        WebRtcManager.stopMedia()
+
+                    }
+                }
+
+            }
+
+        )
 
     }
 

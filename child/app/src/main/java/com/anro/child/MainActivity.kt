@@ -16,10 +16,40 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.anro.child.service.ConnectionService
 import com.anro.child.util.Actions
 import com.anro.child.webrtc.WebRtcManager
+import android.Manifest
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var mediaProjectionManager: MediaProjectionManager
+
+    private val mediaPermissionLauncher =
+    registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+
+        val camera =
+            permissions[Manifest.permission.CAMERA] ?: false
+
+        val mic =
+            permissions[Manifest.permission.RECORD_AUDIO] ?: false
+
+
+        if (camera && mic) {
+
+            Log.i(
+                "ANRO",
+                "Camera & Microphone permission granted"
+            )
+
+        } else {
+
+            Log.i(
+                "ANRO",
+                "Camera/Microphone permission denied"
+            )
+        }
+
+    }
 
     private val projectionLauncher =
         registerForActivityResult(
@@ -80,6 +110,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        mediaPermissionLauncher.launch(
+        arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
+)
 
         WebRtcManager.initialize(this)
 

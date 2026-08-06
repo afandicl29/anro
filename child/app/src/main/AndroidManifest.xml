@@ -4,6 +4,10 @@
 
     <!-- Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!--camera-->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
 
     <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
