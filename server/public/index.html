@@ -15,17 +15,12 @@ body{
 
 
 video{
-
-    width:720px;
-    height:1280px;
-
-    max-width:90vw;
-    max-height:80vh;
-
+    width:auto;
+    height:80vh;
+    max-width:100%;
+    object-fit:contain;
     background:black;
-
     border:2px solid #555;
-
 }
 
 
@@ -58,7 +53,11 @@ ANRO Guardian
 
 
 <button onclick="requestScreen()">
-Screen
+CONNECT
+</button>
+
+<button onclick="disconnectScreen()">
+DISCONNECT
 </button>
 
 
@@ -478,7 +477,17 @@ pc.connectionState
 
 pc.ontrack =
 function(e){
+const track = e.track;
 
+track.onunmute = async () => {
+    const stats = await pc.getStats();
+
+    stats.forEach(report => {
+        if (report.type === "inbound-rtp" && report.kind === "video") {
+            console.log("Inbound Video", report);
+        }
+    });
+};
 
 
 console.log(
@@ -685,6 +694,52 @@ target:selectedDevice
 
 
 }));
+
+
+
+}
+
+function disconnectScreen(){
+
+
+console.log(
+"DISCONNECT",
+selectedDevice
+);
+
+
+
+ws.send(JSON.stringify({
+
+type:"disconnect",
+
+target:selectedDevice
+
+}));
+
+
+
+if(pc){
+
+
+try{
+
+pc.close();
+
+}catch(e){
+
+console.log(e);
+
+}
+
+
+pc=null;
+
+}
+
+
+
+video.srcObject=null;
 
 
 
